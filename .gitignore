@@ -1,6 +1,10 @@
 # Variables de entorno
 .env
 
+coverage/
+.DS_Store
+npm-debug.log*
+
 # Dependencias
 node_modules/
 package-lock.json
