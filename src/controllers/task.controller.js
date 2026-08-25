@@ -37,8 +37,17 @@ async function completeTask(req, res) {
         .json(result.responseBody);
 }
 
+async function getTasks(req, res) {
+    const { status } = req.query;
+
+    const tasks = await taskService.getTasks(status);
+
+    return res.status(200).json(tasks);
+}
+
 module.exports = {
     createTask,
     assignUsersToTask,
-    completeTask
+    completeTask,
+    getTasks
 };

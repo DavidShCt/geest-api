@@ -490,8 +490,60 @@ async function completeTask({
     }
 }
 
+async function getTasks(status) {
+    const where = {};
+
+    if (status !== undefined) {
+        if (!['open', 'archived'].includes(status)) {
+            throw new AppError(
+                'INVALID_STATUS',
+                'Invalid status. Use "open" or "archived".',
+                400
+            );
+        }
+
+        where.status = status;
+    }
+
+    const tasks = await Task.findAll({
+        where,
+        include: [
+            {
+                model: User,
+                as: 'users',
+                attributes: ['id', 'name', 'lastName'],
+                through: {
+                    attributes: ['completed']
+                }
+            }
+        ],
+        order: [['id', 'ASC']]
+    });
+
+    return tasks.map(task => {
+        const taskData = task.toJSON();
+
+        return {
+            id: taskData.id,
+            title: taskData.title,
+            description: taskData.description,
+            status: taskData.status,
+            archivedAt: taskData.archivedAt,
+            users: (taskData.users || []).map(user => ({
+                id: user.id,
+                name: user.name,
+                lastName: user.lastName,
+                completed: user.TaskUser
+                    ? user.TaskUser.completed
+                    : false
+            }))
+        };
+    });
+}
+
 module.exports = {
     createTask,
     assignUsersToTask,
-    completeTask
+    completeTask,
+    getTasks
 };
