@@ -1,4 +1,4 @@
-const { ValidationError, UniqueConstraintError } = require('sequelize');
+const { ValidationError, UniqueConstraintError, SequelizeValidationError, SequelizeUniqueConstraintError } = require('sequelize');
 
 function errorMiddleware(err, req, res, next) {
     console.error(err);
@@ -23,6 +23,24 @@ function errorMiddleware(err, req, res, next) {
 
     if (err instanceof UniqueConstraintError) {
         return res.status(409).json({
+            error: {
+                code: 'DUPLICATE_RESOURCE',
+                message: 'A resource with the provided information already exists.'
+            }
+        });
+    }
+
+    if (err instanceof SequelizeValidationError) {
+        return res.status(400).json({
+            error: {
+                code: 'INVALID_EMAIL',
+                message: 'The email address is not valid.'
+            }
+        });
+    }
+
+    if (err instanceof SequelizeUniqueConstraintError) {
+        return res.status(400).json({
             error: {
                 code: 'DUPLICATE_RESOURCE',
                 message: 'A resource with the provided information already exists.'

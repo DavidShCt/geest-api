@@ -34,13 +34,13 @@ const IdempotencyKey = sequelize.define(
 
         statusCode: {
             type: DataTypes.INTEGER,
-            allowNull: false,
+            allowNull: true,
             field: 'status_code'
         },
-
+        
         responseBody: {
             type: DataTypes.JSON,
-            allowNull: false,
+            allowNull: true,
             field: 'response_body'
         }
     },
