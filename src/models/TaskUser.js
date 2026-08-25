@@ -38,7 +38,13 @@ const TaskUser = sequelize.define(
     {
         tableName: 'task_users',
         timestamps: true,
-        underscored: true
+        underscored: true,
+        indexes: [
+            {
+                unique: true,
+                fields: ['task_id', 'user_id']
+            }
+        ]
     }
 );
 
