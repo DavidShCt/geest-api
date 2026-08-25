@@ -18,12 +18,12 @@ describe('Task model', () => {
         const task = await Task.create({
             title: 'Crear reporte'
         });
-
         expect(task.id).toBeDefined();
         expect(task.title).toBe('Crear reporte');
-        expect(task.description).toBeNull();
         expect(task.status).toBe('open');
-        expect(task.archivedAt).toBeNull();
+        const savedTask = await Task.findByPk(task.id);
+        expect(savedTask.description).toBeNull();
+        expect(savedTask.archivedAt).toBeNull();
     });
 
     test('should create a task with description', async () => {
