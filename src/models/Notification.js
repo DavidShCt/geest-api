@@ -1,4 +1,5 @@
 const { DataTypes } = require('sequelize');
+
 const sequelize = require('../config/database');
 
 const Notification = sequelize.define(
@@ -37,6 +38,7 @@ const Notification = sequelize.define(
     {
         tableName: 'notifications',
         timestamps: true,
+        updatedAt: false,
         underscored: true
     }
 );

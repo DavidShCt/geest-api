@@ -19,6 +19,11 @@ router.get(
 
 router.get('/:idTask', asyncHandler(taskController.getTaskById));
 
+router.get(
+    '/:idTask/notifications',
+    asyncHandler(taskController.getTaskNotifications)
+);
+
 router.post(
     '/:idTask/assign',
     idempotencyMiddleware,

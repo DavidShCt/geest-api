@@ -1,9 +1,12 @@
 const {
-    Task,
     User,
+    Task,
     TaskUser,
+    Notification,
     IdempotencyKey
 } = require('../models');
+
+const notificationService = require('./notification.service');
 
 const AppError = require('../utils/AppError');
 
@@ -305,7 +308,7 @@ async function completeTask({
     }
 
     const transaction = await Task.sequelize.transaction();
-
+    let shouldNotify = false;
     try {
 
         /*
@@ -408,13 +411,15 @@ async function completeTask({
             pendingAssignments === 0 &&
             task.status === 'open'
         ) {
-
+        
             task.status = 'archived';
             task.archivedAt = new Date();
-
+        
             await task.save({
                 transaction
             });
+        
+            shouldNotify = true;
         }
 
         const responseBody = {
@@ -437,6 +442,13 @@ async function completeTask({
         );
 
         await transaction.commit();
+        if (shouldNotify) {
+            await notificationService.sendNotification({
+                taskId: task.id,
+                title: task.title,
+                archivedAt: task.archivedAt
+            });
+        }
 
         return {
             statusCode: 200,
@@ -597,10 +609,48 @@ async function getTaskById(idTask) {
     };
 }
 
+async function getTaskNotifications(idTask) {
+
+    const task = await Task.findByPk(idTask);
+
+    if (!task) {
+        throw new AppError(
+            'TASK_NOT_FOUND',
+            'Task not found.',
+            404
+        );
+    }
+
+    const notifications = await Notification.findAll({
+        where: {
+            taskId: task.id
+        },
+        attributes: [
+            'id',
+            'taskId',
+            'attempt',
+            'attemptedAt',
+            'statusCode'
+        ],
+        order: [
+            ['attempt', 'ASC']
+        ]
+    });
+
+    return notifications.map(notification => ({
+        id: notification.id,
+        taskId: notification.taskId,
+        attempt: notification.attempt,
+        attemptedAt: notification.attemptedAt,
+        statusCode: notification.statusCode
+    }));
+}
+
 module.exports = {
     createTask,
     assignUsersToTask,
     completeTask,
     getTasks,
-    getTaskById
+    getTaskById,
+    getTaskNotifications
 };
