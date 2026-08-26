@@ -502,55 +502,220 @@ async function completeTask({
     }
 }
 
-async function getTasks(status) {
+async function getTasks({
+    status,
+    page,
+    limit
+} = {}) {
+
+    if (
+        status &&
+        !['open', 'archived'].includes(status)
+    ) {
+
+        throw new AppError(
+            'INVALID_STATUS',
+            'Invalid status. Use "open" or "archived".',
+            400
+        );
+    }
+
+    const hasPage =
+        page !== undefined;
+
+    const hasLimit =
+        limit !== undefined;
+
+    /*
+     * page y limit deben enviarse juntos.
+     */
+    if (hasPage !== hasLimit) {
+
+        throw new AppError(
+            'PAGINATION_PARAMS_REQUIRED',
+            'page and limit must be provided together.',
+            400
+        );
+    }
+
     const where = {};
 
-    if (status !== undefined) {
-        if (!['open', 'archived'].includes(status)) {
-            throw new AppError(
-                'INVALID_STATUS',
-                'Invalid status. Use "open" or "archived".',
-                400
-            );
-        }
-
+    if (status) {
         where.status = status;
     }
 
-    const tasks = await Task.findAll({
+    /*
+     * Si no se solicita paginación,
+     * conservamos exactamente el comportamiento original.
+     */
+    if (!hasPage && !hasLimit) {
+
+        const tasks = await Task.findAll({
+            where,
+            attributes: [
+                'id',
+                'title',
+                'description',
+                'status',
+                'archivedAt'
+            ],
+            include: [
+                {
+                    model: User,
+                    as: 'users',
+                    attributes: [
+                        'id',
+                        'name',
+                        'lastName',
+                        'email'
+                    ],
+                    through: {
+                        attributes: [
+                            'completed',
+                            'completedAt'
+                        ]
+                    },
+                    required: false
+                }
+            ],
+            order: [
+                ['id', 'ASC']
+            ]
+        });
+
+        return tasks.map(task => {
+
+            const plainTask = task.get({
+                plain: true
+            });
+
+            return {
+                id: plainTask.id,
+                title: plainTask.title,
+                description: plainTask.description,
+                status: plainTask.status,
+                archivedAt: plainTask.archivedAt,
+                users: (plainTask.users || []).map(user => ({
+                    id: user.id,
+                    name: user.name,
+                    lastName: user.lastName,
+                    email: user.email,
+                    completed: Boolean(
+                        user.TaskUser?.completed
+                    ),
+                    completedAt:
+                        user.TaskUser?.completedAt || null
+                }))
+            };
+        });
+    }
+
+    const parsedPage = Number(page);
+    const parsedLimit = Number(limit);
+
+    if (
+        !Number.isInteger(parsedPage) ||
+        parsedPage < 1
+    ) {
+
+        throw new AppError(
+            'INVALID_PAGE',
+            'page must be a positive integer.',
+            400
+        );
+    }
+
+    if (
+        !Number.isInteger(parsedLimit) ||
+        parsedLimit < 1
+    ) {
+
+        throw new AppError(
+            'INVALID_LIMIT',
+            'limit must be a positive integer.',
+            400
+        );
+    }
+
+    const offset =
+        (parsedPage - 1) * parsedLimit;
+
+    const {
+        count,
+        rows
+    } = await Task.findAndCountAll({
         where,
+        attributes: [
+            'id',
+            'title',
+            'description',
+            'status',
+            'archivedAt'
+        ],
         include: [
             {
                 model: User,
                 as: 'users',
-                attributes: ['id', 'name', 'lastName'],
+                attributes: [
+                    'id',
+                    'name',
+                    'lastName',
+                    'email'
+                ],
                 through: {
-                    attributes: ['completed']
-                }
+                    attributes: [
+                        'completed',
+                        'completedAt'
+                    ]
+                },
+                required: false
             }
         ],
-        order: [['id', 'ASC']]
+        order: [
+            ['id', 'ASC']
+        ],
+        limit: parsedLimit,
+        offset,
+        distinct: true
     });
 
-    return tasks.map(task => {
-        const taskData = task.toJSON();
+    const data = rows.map(task => {
+
+        const plainTask = task.get({
+            plain: true
+        });
 
         return {
-            id: taskData.id,
-            title: taskData.title,
-            description: taskData.description,
-            status: taskData.status,
-            archivedAt: taskData.archivedAt,
-            users: (taskData.users || []).map(user => ({
+            id: plainTask.id,
+            title: plainTask.title,
+            description: plainTask.description,
+            status: plainTask.status,
+            archivedAt: plainTask.archivedAt,
+            users: (plainTask.users || []).map(user => ({
                 id: user.id,
                 name: user.name,
                 lastName: user.lastName,
-                completed: user.TaskUser
-                    ? user.TaskUser.completed
-                    : false
+                email: user.email,
+                completed: Boolean(
+                    user.TaskUser?.completed
+                ),
+                completedAt:
+                    user.TaskUser?.completedAt || null
             }))
         };
     });
+
+    return {
+        data,
+        pagination: {
+            page: parsedPage,
+            limit: parsedLimit,
+            totalItems: count,
+            totalPages: Math.ceil(
+                count / parsedLimit
+            )
+        }
+    };
 }
 
 async function getTaskById(idTask) {

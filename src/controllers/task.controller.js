@@ -38,11 +38,17 @@ async function completeTask(req, res) {
 }
 
 async function getTasks(req, res) {
-    const { status } = req.query;
 
-    const tasks = await taskService.getTasks(status);
+    const result = await taskService.getTasks({
+        status: req.query.status,
+        page: req.query.page,
+        limit: req.query.limit
+    });
 
-    return res.status(200).json(tasks);
+    return res
+        .status(200)
+        .json(result);
+
 }
 
 async function getTaskById(req, res) {
