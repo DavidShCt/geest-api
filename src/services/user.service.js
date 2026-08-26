@@ -1,6 +1,7 @@
 const {
     User,
     Task,
+    TaskUser,
     IdempotencyKey
 } = require('../models');
 
@@ -201,7 +202,51 @@ async function getUsers() {
     }));
 }
 
+async function getUserTasks(idUser) {
+
+    const user = await User.findByPk(idUser);
+
+    if (!user) {
+        throw new AppError(
+            'USER_NOT_FOUND',
+            'User not found.',
+            404
+        );
+    }
+
+    const assignments = await TaskUser.findAll({
+        where: {
+            userId: user.id
+        },
+        include: [
+            {
+                model: Task,
+                as: 'task',
+                attributes: [
+                    'id',
+                    'title',
+                    'description',
+                    'status'
+                ],
+                required: true
+            }
+        ],
+        order: [
+            ['taskId', 'ASC']
+        ]
+    });
+
+    return assignments.map(assignment => ({
+        id: assignment.task.id,
+        title: assignment.task.title,
+        description: assignment.task.description,
+        status: assignment.task.status,
+        completed: assignment.completed
+    }));
+}
+
 module.exports = {
     createUser,
-    getUsers
+    getUsers,
+    getUserTasks
 };

@@ -21,7 +21,19 @@ async function getUsers(req, res) {
         .json(users);
 }
 
+async function getUserTasks(req, res) {
+
+    const tasks = await userService.getUserTasks(
+        req.params.idUser
+    );
+
+    return res
+        .status(200)
+        .json(tasks);
+}
+
 module.exports = {
     createUser,
-    getUsers
+    getUsers,
+    getUserTasks
 };

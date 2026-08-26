@@ -19,4 +19,9 @@ router.get(
     asyncHandler(userController.getUsers)
 );
 
+router.get(
+    '/:idUser/tasks',
+    asyncHandler(userController.getUserTasks)
+);
+
 module.exports = router;
