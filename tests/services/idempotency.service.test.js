@@ -3,7 +3,8 @@ const {
 } = require('../../src/models');
 
 const {
-    waitForCompletion
+    waitForCompletion,
+    getRequestHash
 } = require('../../src/services/idempotency.service');
 
 describe('Idempotency service', () => {
@@ -62,5 +63,23 @@ describe('Idempotency service', () => {
             lastName: 'González',
             email: 'david@example.com'
         });
+    });
+    test('should generate the same hash for objects with the same content in different key order', () => {
+        const body1 = {
+            name: 'David',
+            lastName: 'González',
+            email: 'david@example.com'
+        };
+
+        const body2 = {
+            email: 'david@example.com',
+            name: 'David',
+            lastName: 'González'
+        };
+
+        const hash1 = getRequestHash(body1);
+        const hash2 = getRequestHash(body2);
+
+        expect(hash1).toBe(hash2);
     });
 });
