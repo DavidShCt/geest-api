@@ -1,10 +1,22 @@
 # GEEST API
 
+[English](README.md) | [Español](README.es.md)
+
 REST API for task and user management developed with Node.js, Express, Sequelize and MySQL/MariaDB.
 
 The API allows users and tasks to be managed, users to be assigned to tasks, individual participation to be completed, and tasks to be automatically archived when all assigned users have completed their participation.
 
 The project also implements idempotency, concurrency handling, automatic notifications with retries, filtering and optional pagination.
+
+## Live API
+
+The API is publicly available at:
+
+**https://geest-api.onrender.com**
+
+The production application is hosted on **Render** and uses a managed **MySQL database hosted on Aiven with SSL enabled**.
+
+> The public service is intended for technical evaluation and demonstration purposes.
 
 ## Tech Stack
 
@@ -71,12 +83,18 @@ IdempotencyKey
 
 `TaskUser` represents the many-to-many relationship between users and tasks and stores the completion state of each individual assignment.
 
+The complete database model, relationships, data types and constraints are documented in:
+
+```text
+docs/database-uml.md
+```
+
 ## Installation
 
 Clone the repository and install the dependencies:
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/DavidShCt/geest-api.git
 cd geest-api
 npm install
 ```
@@ -144,15 +162,100 @@ The test suite covers API behavior, validations, idempotency, concurrent request
 
 ## Technical Decisions
 
-Write operations use an `Idempotency-Key` header. The request body is normalized and hashed using SHA-256, and the key, method, route, request hash and resulting response are persisted. Repeating the same operation with the same key and body returns the stored result, while reusing the key with a different body is rejected.
+### Idempotency
+
+Write operations use an `Idempotency-Key` header.
+
+The request body is normalized and hashed using SHA-256. The idempotency key, HTTP method, route, request hash and resulting response are persisted.
+
+Repeating the same operation with the same key and request body returns the stored result, while reusing the same key with a different request body is rejected.
 
 Database transactions, unique constraints and row-level locks are used where necessary to protect operations against race conditions.
 
-Task completion is tracked per user through the `TaskUser` relationship. When no pending assignments remain, the task is automatically archived.
+### Task Completion and Concurrency
 
-Archiving triggers an HTTP notification. Failed requests caused by `5xx`, network errors or timeouts are retried up to three times and every attempt is persisted.
+Task completion is tracked individually for every assigned user through the `TaskUser` relationship.
 
-Task pagination is optional to preserve the original API response contract while allowing large task collections to be retrieved efficiently.
+When no pending assignments remain, the task is automatically archived.
+
+Concurrency protection ensures that simultaneous completion requests cannot cause the task to be archived multiple times or generate duplicate archive notifications.
+
+### Notifications
+
+Archiving a task triggers an HTTP notification to the endpoint configured through the `NOTIFY_URL` environment variable.
+
+Failed requests caused by `5xx` responses, network errors or timeouts are retried up to three times.
+
+Every notification attempt is persisted, including its attempt number, timestamp and HTTP status code when a response is available.
+
+### Optional Pagination
+
+Optional pagination was added to `GET /tasks`.
+
+Example:
+
+```http
+GET /tasks?page=1&limit=10
+```
+
+Pagination can also be combined with status filtering:
+
+```http
+GET /tasks?status=open&page=1&limit=10
+```
+
+In task management systems, the number of records can grow significantly over time. Returning the entire task collection on every request can increase database load, response size, memory usage and network transfer.
+
+Pagination was therefore implemented as an optional feature to improve scalability while preserving backwards compatibility with the original `GET /tasks` response when pagination parameters are not provided.
+
+## Production Deployment
+
+The production architecture is:
+
+```text
+Client
+   │
+   │ HTTPS
+   ▼
+Render
+GEEST API
+   │
+   │ SSL
+   ▼
+Aiven
+MySQL
+```
+
+The Node.js application is deployed as a **Render Web Service**.
+
+The production database is a managed **MySQL instance on Aiven**, accessed using an SSL connection.
+
+Render was selected because of its straightforward Node.js deployment workflow and GitHub integration.
+
+Aiven provides the managed SQL infrastructure required by the application while supporting secure external database connectivity.
+
+Production URL:
+
+**https://geest-api.onrender.com**
+
+## Production Validation
+
+The deployed application was validated end-to-end against the production environment.
+
+The validation included:
+
+1. Creating a user.
+2. Creating a task.
+3. Assigning the user to the task.
+4. Retrieving the task and its assigned users.
+5. Retrieving tasks assigned to the user.
+6. Completing the user's participation.
+7. Automatically archiving the task when no pending assignments remained.
+8. Sending the external archive notification.
+9. Receiving a successful `200` response from the notification destination.
+10. Persisting the notification attempt in the production database.
+
+This validates the complete workflow across the public API, Render deployment, Aiven database and external notification mechanism.
 
 ## API Documentation
 
@@ -162,7 +265,17 @@ Detailed endpoint documentation, request/response examples, idempotency behavior
 docs/API.md
 ```
 
+## Database UML
+
+The database schema, relationships, foreign keys, constraints and relevant business rules are documented in:
+
+```text
+docs/database-uml.md
+```
+
 ## Database Migrations
+
+The database schema is versioned using Sequelize migrations.
 
 Run pending migrations:
 
