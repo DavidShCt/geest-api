@@ -1,8 +1,8 @@
 {
   "name": "geest-api",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "REST API for task management with idempotency, concurrency handling and notification retries.",
+  "main": "src/server.js",
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
@@ -12,9 +12,19 @@
     "db:migrate:undo": "npx sequelize-cli db:migrate:undo",
     "db:migrate:undo:all": "npx sequelize-cli db:migrate:undo:all"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "nodejs",
+    "express",
+    "sequelize",
+    "mysql",
+    "rest-api",
+    "idempotency"
+  ],
+  "author": "David Jovani González Acevedo",
   "license": "ISC",
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
