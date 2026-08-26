@@ -326,4 +326,116 @@ describe('Task archived notifications', () => {
         ).not.toBe('Invalid Date');
     });
 
+    test('should not retry when destination responds with 4xx', async () => {
+        global.fetch = jest.fn()
+            .mockResolvedValue({
+                status: 400
+            });
+
+        const user = await User.create({
+            name: 'David',
+            lastName: 'González',
+            email: 'david@example.com'
+        });
+
+        const task = await Task.create({
+            title: 'Preparar reporte'
+        });
+
+        await TaskUser.create({
+            taskId: task.id,
+            userId: user.id
+        });
+
+        const response = await request(app)
+            .post(`/tasks/${task.id}/complete`)
+            .set('Idempotency-Key', 'notification-client-error-1')
+            .send({
+                userId: user.id
+            });
+
+        expect(response.status).toBe(200);
+
+        expect(global.fetch).toHaveBeenCalledTimes(1);
+
+        const notifications = await Notification.findAll({
+            where: {
+                taskId: task.id
+            }
+        });
+
+        expect(notifications).toHaveLength(1);
+        expect(notifications[0].attempt).toBe(1);
+        expect(notifications[0].statusCode).toBe(400);
+    });
+    test('should retry up to three times when destination times out', async () => {
+        global.fetch = jest.fn()
+            .mockImplementation((url, options) => {
+
+                return new Promise((resolve, reject) => {
+
+                    options.signal.addEventListener('abort', () => {
+
+                        const error = new Error('The operation was aborted.');
+                        error.name = 'AbortError';
+
+                        reject(error);
+                    });
+                });
+            });
+
+        const user = await User.create({
+            name: 'David',
+            lastName: 'González',
+            email: 'david@example.com'
+        });
+
+        const task = await Task.create({
+            title: 'Preparar reporte'
+        });
+
+        await TaskUser.create({
+            taskId: task.id,
+            userId: user.id
+        });
+
+        const response = await request(app)
+            .post(`/tasks/${task.id}/complete`)
+            .set('Idempotency-Key', 'notification-timeout-1')
+            .send({
+                userId: user.id
+            });
+
+        expect(response.status).toBe(200);
+
+        expect(global.fetch).toHaveBeenCalledTimes(3);
+
+        const notifications = await Notification.findAll({
+            where: {
+                taskId: task.id
+            },
+            order: [
+                ['attempt', 'ASC']
+            ]
+        });
+
+        expect(notifications).toHaveLength(3);
+
+        expect(
+            notifications.map(notification => notification.attempt)
+        ).toEqual([
+            1,
+            2,
+            3
+        ]);
+
+        expect(
+            notifications.map(notification => notification.statusCode)
+        ).toEqual([
+            null,
+            null,
+            null
+        ]);
+    });
+
 });
