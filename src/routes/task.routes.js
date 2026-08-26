@@ -17,6 +17,8 @@ router.get(
     asyncHandler(taskController.getTasks)
 );
 
+router.get('/:idTask', asyncHandler(taskController.getTaskById));
+
 router.post(
     '/:idTask/assign',
     idempotencyMiddleware,
@@ -29,6 +31,5 @@ router.post(
     asyncHandler(taskController.completeTask)
 );
 
-// router.get('/:idTask', asyncHandler(taskController.getTaskById));
 
 module.exports = router;

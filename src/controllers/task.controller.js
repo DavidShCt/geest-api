@@ -45,9 +45,19 @@ async function getTasks(req, res) {
     return res.status(200).json(tasks);
 }
 
+async function getTaskById(req, res) {
+
+    const task = await taskService.getTaskById(
+        Number(req.params.idTask)
+    );
+
+    return res.status(200).json(task);
+}
+
 module.exports = {
     createTask,
     assignUsersToTask,
     completeTask,
-    getTasks
+    getTasks,
+    getTaskById
 };

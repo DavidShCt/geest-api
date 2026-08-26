@@ -541,9 +541,66 @@ async function getTasks(status) {
     });
 }
 
+async function getTaskById(idTask) {
+
+    if (!Number.isInteger(idTask) || idTask <= 0) {
+        throw new AppError(
+            'TASK_NOT_FOUND',
+            'Task not found.',
+            404
+        );
+    }
+
+    const task = await Task.findByPk(idTask, {
+        include: [
+            {
+                model: User,
+                as: 'users',
+                attributes: [
+                    'id',
+                    'name',
+                    'lastName'
+                ],
+                through: {
+                    attributes: [
+                        'completed'
+                    ]
+                }
+            }
+        ]
+    });
+
+    if (!task) {
+        throw new AppError(
+            'TASK_NOT_FOUND',
+            'Task not found.',
+            404
+        );
+    }
+
+    const taskData = task.toJSON();
+
+    return {
+        id: taskData.id,
+        title: taskData.title,
+        description: taskData.description,
+        status: taskData.status,
+        archivedAt: taskData.archivedAt,
+        users: (taskData.users || []).map(user => ({
+            id: user.id,
+            name: user.name,
+            lastName: user.lastName,
+            completed: user.TaskUser
+                ? user.TaskUser.completed
+                : false
+        }))
+    };
+}
+
 module.exports = {
     createTask,
     assignUsersToTask,
     completeTask,
-    getTasks
+    getTasks,
+    getTaskById
 };
